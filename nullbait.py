@@ -3,6 +3,7 @@ import os
 import platform
 import sys
 import re
+import urllib2
 
 
 BLOCKHEAD = '###ClickBait HEAD###'
@@ -29,8 +30,7 @@ def set_hostfile():
         host_file = os.environ['WINDIR'] + WIN_HOSTPATH
     else:
         print "Unrecognized host OS"
-        exit()      
-    # print "DEBUG set_hostfile(): File set to %s: " % host_file
+        exit()
 
 
 def menu_choice():
@@ -71,7 +71,7 @@ def launcher(choice):
 
 
 def install_uninstall():
-    """Check for blocklist headers, if present uninstall. If not, install."""
+    """Check for block list headers, if present uninstall. If not, install."""
     try:
         list_present = BLOCKHEAD in open(host_file).read()    
     except IOError as e:
@@ -103,15 +103,19 @@ def initialize_list():
             exit()
     print "\n* Block list headers installed"         
     print "* Initializing block list"
+    push_site(file_to_list(BASE_LIST))        
+
+
+def file_to_list(file_path):
     domain_list = []
     try:  
-        with open(BASE_LIST, 'r') as listfile:    
+        with open(file_path, 'r') as listfile:    
             for site in listfile: 
                 domain_list.append(site)
     except IOError as e:
             print e.args
             exit()
-    push_site(domain_list)        
+    return domain_list
 
 
 def remove_list():
@@ -146,6 +150,7 @@ def push_site(domain_list):
 
 def change_site(domainstr, update):
     """Modify Site Entry
+    
     Takes in domain string to change followed by new string.
     Modify access state by passing # plus current string 
     Removes site from list by passing Null string 
@@ -169,7 +174,7 @@ def change_site(domainstr, update):
     return match 
 
 
-def get_list():
+def get_current_list():
     """Iterate host file, create list of tuples containing site and block state."""
     domain_list = []
     list_line = False
@@ -226,7 +231,7 @@ def remove_site():
 def toggle_site():
     """Change blocked || accessible state of site via commenting out with #."""
     print_list()
-    site_list =  get_list()
+    site_list =  get_current_list()
     valid = False
     choice = ''
     while not valid:
@@ -249,14 +254,36 @@ def toggle_site():
 
 
 def update_list():
-    """Pull list from project site, merge with current, push diff onto list head."""
-    pass
+    """Update hostfile and base block lists
+    
+    Load current block file into list.
+    Pull updated block file from project site.
+    Write new block file to disk. 
+    Load new block file into list.
+    Diff lists, add new to host_file.
+    """
+    current_list = file_to_list(BASE_LIST)
+    try:
+        url = 'https://raw.githubusercontent.com/EOA/nullclick/master/base.list'
+        new_block_list = urllib2.urlopen(url).read()
+    except Exception as e:
+        print e.args
+        exit()
+    try:
+        with open(BASE_LIST, 'w') as f:
+            f.write(new_block_list)
+    except IOError as e:
+        print e.args
+        exit()
+    new_list = file_to_list(BASE_LIST)
+    diff_list =  list( set(new_list) - set(current_list) )
+    push_site(diff_list)
     
     
 def print_list():
     """Print lists of sites and states."""
     print "\n*** Current Block List ***",
-    for index, domain in enumerate(get_list()):
+    for index, domain in enumerate(get_current_list()):
         print "%2d: %s - %s" % (index, domain[0], domain[1])
     print ''
 
