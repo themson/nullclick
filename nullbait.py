@@ -1,8 +1,9 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 import os
 import platform
 import sys
 import re
+import shutil
 import urllib2
 
 
@@ -18,6 +19,7 @@ LIST_URL = 'https://raw.githubusercontent.com/EOA/nullclick/master/base.list'
 
 local_os = platform.system()
 host_file = ''
+host_file_backup = ''
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # Unbuffered IO for printing
 
@@ -25,10 +27,13 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # Unbuffered IO for printing
 def set_hostfile():
     """Set file to manipulate based off OS environment."""
     global host_file
-    if local_os.lower() == 'linux' or local_os.lower() == 'osx':
+    global host_file_backup
+    if local_os.lower() == 'linux' or local_os.lower() == 'darwin':
         host_file = LINUX_HOSTPATH
+        host_file_backup = '%s.backup' %  host_file
     elif local_os.lower() == 'windows':
         host_file = os.environ['WINDIR'] + WIN_HOSTPATH
+        host_file_backup = '%s.backup' % host_file
     else:
         print "Unrecognized host OS"
         exit()
@@ -71,13 +76,9 @@ def launcher(choice):
     options[choice]()
 
 
-def install_uninstall():
+def install_uninstall(**kwargs):
     """Check for block list headers, if present uninstall. If not, install."""
-    try:
-        list_present = BLOCKHEAD in open(host_file).read()    
-    except IOError as e:
-            print e.args
-            exit()
+    list_present = check_list_init()
     choice = ''
     while choice not in ['yes', 'no']:
         if list_present:
@@ -93,15 +94,39 @@ def install_uninstall():
         return
 
 
+def check_list_init():
+    try:
+        list_state = BLOCKHEAD in open(host_file).read()
+    except IOError as e:
+        print e.args
+        exit()
+    return list_state
+
+
+def backup_hostfile():
+    if os.path.exists(host_file_backup):
+        import filecmp
+        cmp_result = filecmp.cmp(host_file, host_file_backup)
+        list_installed = check_list_init()
+        if not cmp_result and not list_installed:
+            shutil.copyfile(host_file, host_file_backup)
+    else:
+        try:
+            shutil.copy2(host_file, host_file_backup)
+        except IOError as e:
+            print 'Unable to back up hosts file: \n%s' % e.args
+            exit()
+
+
 def initialize_list():
     """Insert Block List header and footer into host file, propagate base list."""
-    # TODO: Backup of hostfile/Restore hostfile
+    backup_hostfile()
     try:
         with open(host_file, 'a') as hostf:
             hostf.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
     except IOError as e:
-            print e.args
-            exit()
+        print e.args
+        exit()
     print "\n* Block list headers installed"         
     print "* Initializing block list"
     push_site(file_to_list(BASE_LIST))        
