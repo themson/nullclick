@@ -132,11 +132,12 @@ def initialize_list():
     push_site(file_to_list(BASE_LIST))        
 
 
-def file_to_list(file_path):
+def file_to_list(file_path): 
+    """Take in file path containing list of domain\n, one per line, return as list."""
     domain_list = []
     try:  
-        with open(file_path, 'r') as listfile:    
-            for site in listfile: 
+        with open(file_path, 'r') as list_file: #TODO: Consider moving to list_file.read().join() on new line    
+            for site in list_file: 
                 domain_list.append(site)
     except IOError as e:
             print e.args
