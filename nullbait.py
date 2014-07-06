@@ -286,7 +286,7 @@ def update_list():
     Pull updated block file from project site.
     Write new block file to disk. 
     Load new block file into list.
-    Diff lists, add new to host_file.
+    Diff lists, add new sites to host_file.
     """
     current_list = file_to_list(BASE_LIST)
     try:
@@ -310,7 +310,7 @@ def update_list():
     
     
 def print_list():
-    """Print lists of sites and states."""
+    """Print list of sites and accessibility states."""
     print "\n*** Current Block List ***",
     for index, domain in enumerate(get_current_list()):
         print "%2d: %s - %s" % (index, domain[0], domain[1])
@@ -318,7 +318,7 @@ def print_list():
 
 
 def main():
-    """Call menu and function launcher loop"""
+    """Call menu and function launcher loop."""
     set_hostfile()
     while 1:
         launcher(menu_choice())
