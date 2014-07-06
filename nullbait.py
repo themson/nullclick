@@ -277,7 +277,11 @@ def update_list():
         exit()
     new_list = file_to_list(BASE_LIST)
     diff_list =  list( set(new_list) - set(current_list) )
-    push_site(diff_list)
+    if len(diff_list) > 0:
+        push_site(diff_list)
+        print "\n* List successfully updated."
+    else:
+        print "\n* List is already up to date."
     
     
 def print_list():
