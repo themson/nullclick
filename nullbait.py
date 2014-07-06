@@ -34,33 +34,32 @@ def set_hostfile():
 
 
 def menu_choice():
-    """"Print options menut, take in user choice."""
+    """"Print options menu, take in user choice."""
     print """
-0. Install block list.
 1. Add site to block list.
 2. Remove site from block list. 
 3. Toggle site state.
 4. Update block list.
-5. Print current block list.
+5. Print all block list.
 6. Exit
+
+0. Install/Uninstall block list.
 """
-    valid = False
     choice = ''
-    while not valid:
+    valid = ('0','1', '2', '3', '4', '5', '6')
+    while choice not in valid:
         try:
-            choice = raw_input('choice: ')
-            valid  = choice in ('0','1', '2', '3', '4', '5', '6')
+            choice = raw_input('#: ')
         except:
             choice = ''
-            valid = False
-        if not valid:
+        if choice not in valid:
             print "invalid choice \n"            
-    return int(choice) 
+    return int(choice)
 
 
 def launcher(choice):
     """"Take in int choice, use dict as switch to call function."""
-    options = {0 : install,
+    options = {0 : install_uninstall,
                1 : add_site,
                2 : remove_site,
                3 : toggle_site,
@@ -71,25 +70,38 @@ def launcher(choice):
     options[choice]()
 
 
-def install():
+def install_uninstall():
+    """Check for blocklist headers, if present uninstall. If not, install."""
+    try:
+        list_present = BLOCKHEAD in open(host_file).read()    
+    except IOError as e:
+            print e.args
+            exit()
+    choice = ''
+    while choice not in ['yes', 'no']:
+        if list_present:
+            print "\n* Uninstall block list?"
+        else:
+            print "\n* Install block list?"
+        choice = raw_input('yes/no ?: ').lower()
+    if list_present and choice == 'yes':
+        remove_list()
+    elif choice == 'yes':
+        initialize_list()
+    else:
+        return
+
+
+def initialize_list():
     """Insert Block List header and footer into host file, propagate base list."""
-    # TODO: Uninstall option
     # TODO: Backup of hostfile/Restore hostfile
     try:
-        if BLOCKHEAD in open(host_file).read():
-            print "\n * Block list already installed"
-            return    
-    except IOError as e:
-            print e.args
-            exit()
-    print "* Block list headers installed\n"
-    try:
         with open(host_file, 'a') as hostf:
-            hostf.write('\n' + BLOCKHEAD + '\n' + BLOCKTAIL + '\n\n')
+            hostf.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
     except IOError as e:
             print e.args
             exit()
-            
+    print "\n* Block list headers installed"         
     print "* Initializing block list"
     domain_list = []
     try:  
@@ -100,6 +112,19 @@ def install():
             print e.args
             exit()
     push_site(domain_list)        
+
+
+def remove_list():
+    """Iterate host file, locate list, null out list lines. Rewrite host file."""
+    try:
+        with open(host_file, 'r') as f:
+            host_file_new = re.sub(BLOCKHEAD + '.*?' + BLOCKTAIL + '\n', '', f.read(), flags=re.DOTALL)
+        with open(host_file, 'w') as fnew:
+            fnew.write(host_file_new) 
+    except IOError as e:
+        print e.args
+        exit()
+    print "\n* Block list removed."
     
 
 def push_site(domain_list):
