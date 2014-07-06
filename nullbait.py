@@ -8,12 +8,13 @@ import urllib2
 
 BLOCKHEAD = '###ClickBait HEAD###'
 BLOCKTAIL = '###ClickBait TAIL###'
-LINUX_HOSTPATH = "/etc/hosts"
-WIN_HOSTPATH = "\\system32\\drivers\\etc\\hosts"
-BASE_LIST = "base.list"
-SINKHOLE_IP = "127.0.1.1"
-SPACER = "    "
+LINUX_HOSTPATH = '/etc/hosts'
+WIN_HOSTPATH = '\\system32\\drivers\\etc\\hosts'
+BASE_LIST = 'base.list'
+SINKHOLE_IP = '127.0.1.1'
+SPACER = '    '
 SINKPREFIX = SINKHOLE_IP + SPACER
+LIST_URL = 'https://raw.githubusercontent.com/EOA/nullclick/master/base.list'
 
 local_os = platform.system()
 host_file = ''
@@ -264,8 +265,7 @@ def update_list():
     """
     current_list = file_to_list(BASE_LIST)
     try:
-        url = 'https://raw.githubusercontent.com/EOA/nullclick/master/base.list'
-        new_block_list = urllib2.urlopen(url).read()
+        new_block_list = urllib2.urlopen(LIST_URL).read()
     except Exception as e:
         print e.args
         exit()
