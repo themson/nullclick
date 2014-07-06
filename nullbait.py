@@ -133,7 +133,7 @@ def remove_list():
     
 
 def push_site(domain_list):
-    """Add new list of sites to head of lists."""
+    """Add new sites to head of block list."""
     ip_domain_list = []
     for domain in domain_list:# Prepend IP 
         ip_domain_list.append(SINKPREFIX + domain)
