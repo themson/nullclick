@@ -76,13 +76,9 @@ def launcher(choice):
     options[choice]()
 
 
-def install_uninstall():
+def install_uninstall(**kwargs):
     """Check for block list headers, if present uninstall. If not, install."""
-    try:
-        list_present = BLOCKHEAD in open(host_file).read()    
-    except IOError as e:
-            print e.args
-            exit()
+    list_present = check_list_init()
     choice = ''
     while choice not in ['yes', 'no']:
         if list_present:
@@ -98,11 +94,21 @@ def install_uninstall():
         return
 
 
+def check_list_init():
+    try:
+        list_state = BLOCKHEAD in open(host_file).read()
+    except IOError as e:
+        print e.args
+        exit()
+    return list_state
+
+
 def backup_hostfile():
     if os.path.exists(host_file_backup):
         import filecmp
         cmp_result = filecmp.cmp(host_file, host_file_backup)
-        if not cmp_result:
+        list_installed = check_list_init()
+        if not cmp_result and not list_installed:
             shutil.copyfile(host_file, host_file_backup)
     else:
         try:
@@ -119,8 +125,8 @@ def initialize_list():
         with open(host_file, 'a') as hostf:
             hostf.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
     except IOError as e:
-            print e.args
-            exit()
+        print e.args
+        exit()
     print "\n* Block list headers installed"         
     print "* Initializing block list"
     push_site(file_to_list(BASE_LIST))        
