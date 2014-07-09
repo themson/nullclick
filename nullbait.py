@@ -289,7 +289,7 @@ def update_list():
     Pull updated block file from project site.
     Write new block file to disk. 
     Load new block file into list.
-    Diff lists, add new to host_file.
+    Diff lists, add new domains to host_file.
     """
     current_list = file_to_list(BASE_LIST)
     try:
@@ -321,7 +321,7 @@ def print_list():
 
 
 def main():
-    """Call menu and function launcher loop"""
+    """Call menu and function launcher loop."""
     set_hostfile()
     while 1:
         launcher(menu_choice())
