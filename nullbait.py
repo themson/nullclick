@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+from __future__ import print_function, division, absolute_import, unicode_literals
 import os
 import platform
 import sys
 import re
 import shutil
 import urllib2
+
 
 
 BLOCKHEAD = '###ClickBait HEAD###'
@@ -33,13 +35,13 @@ def set_hostfile():
     elif local_os.lower() == 'windows':
         host_file = os.environ['WINDIR'] + WIN_HOSTPATH
     else:
-        print "Unrecognized host OS"
+        print (u"Unrecognized host OS")
         exit()
 
 
 def menu_choice():
     """"Print options menu, take in user choice."""
-    print """
+    print (u"""
 1. Add site to block list.
 2. Remove site from block list. 
 3. Toggle site state.
@@ -48,7 +50,7 @@ def menu_choice():
 6. Exit
 
 0. Install/Uninstall block list.
-"""
+""")
     choice = ''
     valid = ('0','1', '2', '3', '4', '5', '6')
     while choice not in valid:
@@ -57,7 +59,7 @@ def menu_choice():
         except:
             choice = ''
         if choice not in valid:
-            print "invalid choice \n"            
+            print(u"invalid choice \n")            
     return int(choice)
 
 
@@ -80,9 +82,9 @@ def install_uninstall(**kwargs):
     choice = ''
     while choice not in ['yes', 'no']:
         if list_present:
-            print "\n* Uninstall block list?"
+            print(u"\n* Uninstall block list?")
         else:
-            print "\n* Install block list?"
+            print(u"\n* Install block list?")
         choice = raw_input('yes/no ?: ').lower()
     if list_present and choice == 'yes':
         remove_list()
@@ -97,7 +99,7 @@ def is_list_present():
     try:
         return BLOCKHEAD in open(host_file).read()
     except IOError as e:
-        print e.args
+        print (e.args)
         exit()
 
 
@@ -114,7 +116,7 @@ def backup_hostfile(): #TODO: Review and add call in initialize_list or
         try:
             shutil.copy2(host_file, host_file_backup)
         except IOError as e:
-            print 'Unable to back up hosts file: \n%s' % e.args
+            print(u"Unable to back up hosts file: \n{}".format(e.args))
             exit()
 
 
@@ -125,10 +127,10 @@ def initialize_list():
         with open(host_file, 'a') as hostf:
             hostf.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
-    print "\n* Block list headers installed"         
-    print "* Initializing block list"
+    print("\n* Block list headers installed")         
+    print("* Initializing block list")
     push_site(file_to_list(BASE_LIST))        
 
 
@@ -140,7 +142,7 @@ def file_to_list(file_path):
             for site in list_file: 
                 domain_list.append(site)
     except IOError as e:
-            print e.args
+            print(e.args)
             exit()
     return domain_list
 
@@ -153,9 +155,9 @@ def remove_list():
         with open(host_file, 'w') as fnew:
             fnew.write(host_file_new) 
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
-    print "\n* Block list removed."
+    print("\n* Block list removed.")
     
 
 def push_site(domain_list):
@@ -170,9 +172,9 @@ def push_site(domain_list):
         with open(host_file, 'w') as fout:
             fout.write(hostfile_new)   
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
-    print "\n* Added to block list:\n%s" % ''.join(domain_list)    
+    print("\n* Added to block list:\n{}".format(''.join(domain_list)))    
     
 
 def change_site(domainstr, update):
@@ -196,7 +198,7 @@ def change_site(domainstr, update):
         with open(host_file, 'w') as fout:
             fout.write(hostfile_new)   
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
     return match 
 
@@ -212,7 +214,7 @@ def get_current_list():
                     list_line = True
                     continue
                 if line == BLOCKTAIL + '\n':
-                    print ''
+                    print('')
                     break 
                 if list_line:
                     state = 'BLOCKED'
@@ -222,9 +224,9 @@ def get_current_list():
                     line = line.lstrip(SINKPREFIX)
                     domain_list.append((line.rstrip('\n'), state))    
             else:
-                print "\n* Block list not found."
+                print("\n* Block list not found.")
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
     return domain_list
 
@@ -236,7 +238,7 @@ def get_domain_name():
     if re.search(r'[a-zA-Z\d-]{,63}(\.[a-zA-Z\d-]{,63}).', domain[0]):
         return domain
     else:
-        print "Invalid domain name"
+        print("Invalid domain name")
         exit()
         
 
@@ -250,9 +252,9 @@ def remove_site():
     """Remove site from list."""
     domain = get_domain_name()[0]
     if change_site(domain, ''):
-        print "\n* Removed %s from block list." % domain
+        print("\n* Removed {} from block list.".format(domain))
     else:
-        print "\n* Domain %s not present in list. " % domain
+        print("\n* Domain %s not present in list. ".format(domain))
 
 
 def toggle_site():
@@ -269,14 +271,14 @@ def toggle_site():
             choice = ''
             valid = False
         if not valid:
-            print "invalid choice \n"
+            print("invalid choice \n")
     state = site_list[choice][1]
     if state == 'BLOCKED':            
         change_site(site_list[choice][0], '#' + SINKPREFIX + site_list[choice][0] + '\n')
-        print "\n* %s is now accessible" % site_list[choice][0] 
+        print("\n* {} is now accessible".format(site_list[choice][0])) 
     elif state == 'ACCESSIBLE':
         change_site('#' + SINKPREFIX + site_list[choice][0], SINKPREFIX + site_list[choice][0] + '\n')
-        print "\n* %s is now blocked." % site_list[choice][0]
+        print("\n* {} is now blocked.".format(site_list[choice][0]))  
     #TODO: FLUSH DNS CACHE / Browsing History
 
 
@@ -293,29 +295,29 @@ def update_list():
     try:
         new_block_list = urllib2.urlopen(LIST_URL).read()
     except Exception as e:
-        print e.args
+        print(e.args)
         exit()
     try:
         with open(BASE_LIST, 'w') as f:
             f.write(new_block_list)
     except IOError as e:
-        print e.args
+        print(e.args)
         exit()
     new_list = file_to_list(BASE_LIST)
     diff_list =  list( set(new_list) - set(current_list) )
     if len(diff_list) > 0:
         push_site(diff_list)
-        print "\n* List successfully updated."
+        print("\n* List successfully updated.")
     else:
-        print "\n* List is already up to date."
+        print("\n* List is already up to date.")
     
     
 def print_list():
     """Print lists of sites and states."""
-    print "\n*** Current Block List ***",
+    print("\n*** Current Block List ***", end='')
     for index, domain in enumerate(get_current_list()):
-        print "%2d: %s - %s" % (index, domain[0], domain[1])
-    print ''
+        print(u"{:2d} {} - {}".format(index, domain[0], domain[1]))
+    print('')
 
 
 def main():
