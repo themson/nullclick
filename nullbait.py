@@ -243,9 +243,14 @@ def get_domain_name():
         
 
 def add_site():
-    """Push new site onto head of list."""
-    domain = get_domain_name()
-    push_site(domain)
+    """Push new site onto head of list. Returns Bool if needed"""
+    if is_list_present():
+        domain = get_domain_name()
+        push_site(domain)
+        return True
+    else:
+        print("\n* No block list present, must install list first.")
+        return False
 
 
 def remove_site():
