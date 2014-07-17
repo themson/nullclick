@@ -9,13 +9,13 @@ import urllib2
 import argparse
 
 
-BLOCKHEAD = '###ClickBait HEAD###'
-BLOCKTAIL = '###ClickBait TAIL###'
+BLOCKHEAD = '###NULLCLICK HEAD###'
+BLOCKTAIL = '###NULLCLICK TAIL###'
 LINUX_HOSTPATH = '/etc/hosts'
 WIN_HOSTPATH = '\\system32\\drivers\\etc\\hosts'
 OSX_HOSTPATH = LINUX_HOSTPATH  
 BASE_LIST = 'base.list'
-CUSTOMER_LIST = 'customer.list'
+CUSTOMER_LIST = 'custom.list'
 SINKHOLE_IP = '127.0.1.1'
 SPACER = '    '
 SINK_PREFIX = SINKHOLE_IP + SPACER
