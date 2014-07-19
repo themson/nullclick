@@ -75,6 +75,10 @@ def arg_launcher(args):
     if args.domains_remove:
         domain_list = [domain_name for domain_name in args.domains_remove if is_valid_domain(domain_name)]
         remove_sites(domain_list)
+    if args.domain_toggle:
+        domain_name = args.domain_toggle[0]
+        if is_valid_domain(domain_name):
+            toggle_site(domain_name)
     if args.print_list:
         print_list()
 
@@ -227,7 +231,7 @@ def remove_list():
         return True
     else:
         return False
-    
+
 
 def push_site(domain_list):
     """Add new sites to head of block list."""
@@ -246,37 +250,39 @@ def push_site(domain_list):
         print("\n* Added domain:\n{}".format('\n'.join(domain_list)))
 
 
-def change_site(domain_str, option, ip=''):  #TODO: Add ability to modify sinkhole IP per site
+def change_site(domain_str, option, ip=''):  # TODO: Add ability to modify sinkhole IP per site
     """Modify Site Entry
     
     Takes in domain string to change followed by new string.
-    Modify access state by passing # plus current string 
-    Removes site from list by passing Null string 
+    Modify site entry by replacing with update_str defined in change_options dict
+    Line matched containing domain name and new options update string is placed
     """
-    change_options = {'ip': ip, 'state_block': '', 'state_access': '', 'remove': ''}
-    if option not in change_options:
-        raise ValueError("Invalid option")
+    block_str = (SINK_PREFIX + domain_str + '\n')
+    access_str = ('#' + SINK_PREFIX + domain_str + '\n')
+    change_options = {'ip': ip, 'state_block': block_str, 'state_access': access_str, 'remove': ''}
+
+    if option in change_options:
+        update_str = change_options[option]
     else:
-        print("Options found: {}, using Update of \"{}\".".format(option, change_options[option]))
-    update_str = change_options[option]
-    match = False
+        raise ValueError("Invalid option")
+    found_changed = False
     try:
         with open(host_file, 'r') as file_in:
             hostfile_new = ''
             for line in file_in:
                 if line == (SINK_PREFIX + domain_str + '\n') or line == ('#' + SINK_PREFIX + domain_str + '\n'):
                     line = update_str
-                    match = True
+                    found_changed = True
                 hostfile_new += line
         with open(host_file, 'w') as file_out:
             file_out.write(hostfile_new)
     except IOError as e:
         print(e.args)
         exit()
-    return match 
+    return found_changed
 
 
-def get_current_list():  # TODO: change to include sinkhole ip
+def get_current_list():  # TODO: change to include sinkhole IP
     """Iterate host file, create list of tuples containing site and block state."""
     domain_list = []
     list_line = False
@@ -356,29 +362,53 @@ def remove_sites(remove_domains_list=''):
         print("\n* No block list present, install list first.")
 
 
-def toggle_site():  # TODO: change to take in domain list
-    """Change blocked || accessible state of site via commenting out with #."""
+def get_toggle_site():
+    """Prompt user for single site, return site name str."""
     print_list()
-    site_list = get_current_list()
-    valid = False
+    site_state_list = get_current_list()
     choice = ''
-    while not valid:  # TODO: move to get_domain_by_number
+    while choice not in xrange(len(site_state_list)):
         try:
-            choice = int(raw_input('Site Number to toggle: '))
-            valid = choice in range(len(site_list))
+            choice = int(raw_input('Site Number to toggle: ')) - 1
         except Exception as e:
             choice = ''
-            valid = False
-        if not valid:
-            print("invalid choice \n")
-    current_state = site_list[choice][1]
-    if current_state == 'BLOCKED':    # TODO: move these state changes to change_site options dictionary
-        change_site(site_list[choice][0], '#' + SINK_PREFIX + site_list[choice][0] + '\n')
-        print("\n* {} is now accessible".format(site_list[choice][0])) 
-    elif current_state == 'ACCESSIBLE':
-        change_site('#' + SINK_PREFIX + site_list[choice][0], SINK_PREFIX + site_list[choice][0] + '\n')
-        print("\n* {} is now blocked.".format(site_list[choice][0]))  
+    return site_state_list[choice][0]  # site name
+
+
+def toggle_confirm():
+    """Remind user this click is probably a waste of time... """
+    print("Do you really need to waste your time at this site... ?")
+    while 1:
+        choice = raw_input("yes/no: ").lower()
+        if choice == 'yes':
+            return True
+        elif choice == 'no':
+            return False
+        else:
+            continue
+
+
+def toggle_site(domain_choice=''):
+    """Change blocked || accessible state of site via commenting out with #."""
     #TODO: FLUSH DNS CACHE / Browsing History
+    site_list = get_current_list()
+    if interactive:
+        domain_choice = get_toggle_site()
+    domain_info = [domain_data for domain_data in site_list if domain_data[0] == domain_choice]
+    if domain_info:
+        domain_info = domain_info[0]
+    else:
+        print("\n* Invalid site: {}".format(domain_choice))
+        return
+    domain_name = domain_info[0]
+    domain_state = domain_info[1]
+    if domain_state == 'BLOCKED':
+        if toggle_confirm() is True:
+            change_site(domain_name, 'state_access')
+            print("\n* {} is now accessible".format(domain_name))
+    elif domain_state == 'ACCESSIBLE':
+        change_site(domain_name, 'state_block')
+        print("\n* {} is now blocked.".format(domain_name))
 
 
 def update_list():
