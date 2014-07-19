@@ -58,12 +58,12 @@ def build_argparser():
 
 def arg_launcher(args):
     if args.uninstall:
-        if remove_list() is True:
+        if remove_list():
             print("\n* Block list successfully removed.")
         else:
             print("\n* No list present to uninstall.")
     if args.install:
-        if install_list() is True:
+        if install_list():
             print("\n* Block list successfully installed.")
         else:
             print("\n* List already present in host file.")
@@ -145,12 +145,12 @@ def install_uninstall():
             print(u"\n* Install block list?")
         choice = raw_input('yes/no ?: ').lower()
     if list_present and choice == 'yes':
-        if remove_list() is True:
+        if remove_list():
             print("\n* Block list  successfully removed.")
         else:
             print("\n* No list present to uninstall.")
     elif choice == 'yes':
-        if install_list() is True:
+        if install_list():
             print("\n* Block list successfully installed.")
         else:
             print("\n* Block lists already present in host file.")
@@ -237,6 +237,7 @@ def push_site(domain_list):
     """Add new sites to head of block list."""
     if domain_list:
         domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
+        print(domain_list)
         domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
         inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
         try:
@@ -403,7 +404,7 @@ def toggle_site(domain_choice=''):
     domain_name = domain_info[0]
     domain_state = domain_info[1]
     if domain_state == 'BLOCKED':
-        if toggle_confirm() is True:
+        if toggle_confirm():
             change_site(domain_name, 'state_access')
             print("\n* {} is now accessible".format(domain_name))
     elif domain_state == 'ACCESSIBLE':
@@ -427,12 +428,13 @@ def update_list():
     try:
         new_block_list = urllib2.urlopen(LIST_URL).read()
     except Exception as e:
-        print("Update Connection Error: {}".format(e.args))
+        print("* Update Connection Error: {}".format(e.args))
         exit()
     try:
         with open(BASE_LIST, 'w') as f:
             f.write(new_block_list)
     except IOError as e:
+        print("* Block list {} missing or corrupt.\nERROR: {}".format(BASE_LIST, e.args))
         print(e.args)
         exit()
     new_list = file_to_list(BASE_LIST)
@@ -443,7 +445,7 @@ def update_list():
     else:
         print("\n* List data is already up to date.")
 
-    if is_list_present() is not True:
+    if not is_list_present():
         print("* Note: You must install the block list for these changes to take effect.")
     
     
