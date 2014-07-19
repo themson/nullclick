@@ -163,7 +163,7 @@ def is_list_present():
         exit()
 
 
-def backup_hostfile():  # TODO: Review and add call in initialize_list or
+def backup_hostfile():  # TODO: Review and add call in install_list
     """Backups up host file before injection of block list. Called from initialize_list()"""
     host_file_backup = '%s.backup' % host_file
     if os.path.exists(host_file_backup):
@@ -232,7 +232,7 @@ def remove_list():
 def push_site(domain_list):
     """Add new sites to head of block list."""
     if domain_list:
-        domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Remove invalid, SHOULD have been checking on calling function
+        domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
         domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
         inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
         try:
@@ -246,7 +246,7 @@ def push_site(domain_list):
         print("\n* Added domain:\n{}".format('\n'.join(domain_list)))
 
 
-def change_site(domain_str, option, ip=''):
+def change_site(domain_str, option, ip=''):  #TODO: Add ability to modify sinkhole IP per site
     """Modify Site Entry
     
     Takes in domain string to change followed by new string.
@@ -259,8 +259,6 @@ def change_site(domain_str, option, ip=''):
     else:
         print("Options found: {}, using Update of \"{}\".".format(option, change_options[option]))
     update_str = change_options[option]
-
-    #TODO: Add ability to modify sinkhole IP per site
     match = False
     try:
         with open(host_file, 'r') as file_in:
