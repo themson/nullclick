@@ -19,7 +19,7 @@ CUSTOM_LIST = 'custom.list'
 SINKHOLE_IP = '127.0.1.1'
 SPACER = '    '
 SINK_PREFIX = SINKHOLE_IP + SPACER
-LIST_URL = 'https://github.com/themson/nullclick/blob/master/base.list'
+LIST_URL = 'https://raw.githubusercontent.com/themson/nullclick/master/base.list'
 
 local_os = platform.system()
 host_file = ''
