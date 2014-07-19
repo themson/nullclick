@@ -9,22 +9,22 @@ import urllib2
 import argparse
 
 
-BLOCKHEAD = '###NULLCLICK HEAD###'
-BLOCKTAIL = '###NULLCLICK TAIL###'
-LINUX_HOSTPATH = '/etc/hosts'
-WIN_HOSTPATH = '\\system32\\drivers\\etc\\hosts'
+BLOCKHEAD = u'###NULLCLICK HEAD###'
+BLOCKTAIL = u'###NULLCLICK TAIL###'
+LINUX_HOSTPATH = u'/etc/hosts'
+WIN_HOSTPATH = u'\\system32\\drivers\\etc\\hosts'
 OSX_HOSTPATH = LINUX_HOSTPATH  
-BASE_LIST = 'base.list'
-CUSTOM_LIST = 'custom.list'
-SINKHOLE_IP = '127.0.1.1'
-SPACER = '    '
+BASE_LIST = u'base.list'
+CUSTOM_LIST = u'custom.list'
+SINKHOLE_IP = u'127.0.1.1'
+SPACER = u'    '
 SINK_PREFIX = SINKHOLE_IP + SPACER
-LIST_URL = 'https://raw.githubusercontent.com/themson/nullclick/master/base.list'
+LIST_URL = u'https://raw.githubusercontent.com/themson/nullclick/master/base.list'
 
 local_os = platform.system()
 host_file = ''
 interactive = False
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # Unbuffered IO for printing
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)  # Unbuffered IO for printing
 
 
 def build_argparser():
@@ -57,34 +57,26 @@ def build_argparser():
 
 
 def arg_launcher(args):
+    """Parse command line arguments, launch in clean order."""
     if args.uninstall:
-        if remove_list():
-            print("\n* Block list successfully removed.")
-        else:
-            print("\n* No list present to uninstall.")
+        install_uninstall('uninstall')
     if args.install:
-        if install_list():
-            print("\n* Block list successfully installed.")
-        else:
-            print("\n* List already present in host file.")
+        install_uninstall('install')
     if args.update_list:
         update_list()
     if args.domains_add:
-        domain_list = [domain_name for domain_name in args.domains_add if is_valid_domain(domain_name)]
-        add_sites(domain_list)
+        add_sites(args.domains_add)
     if args.domains_remove:
-        domain_list = [domain_name for domain_name in args.domains_remove if is_valid_domain(domain_name)]
-        remove_sites(domain_list)
+        remove_sites(args.domains_remove)
     if args.domain_toggle:
         domain_name = args.domain_toggle[0]
-        if is_valid_domain(domain_name):
-            toggle_site(domain_name)
+        toggle_site(domain_name)
     if args.print_list:
         print_list()
 
 
 def set_hostfile():
-    """Set file to manipulate based off OS environment."""
+    """Set file based on OS environment."""
     global host_file
     if local_os.lower() == 'linux':
         host_file = LINUX_HOSTPATH
@@ -109,16 +101,16 @@ def menu_choice():
 
 0. Install/Uninstall block list.
 """)
-    choice = ''
-    valid = ('0', '1', '2', '3', '4', '5', '6')
+    choice = 99
+    valid = (0, 1, 2, 3, 4, 5, 6)
     while choice not in valid:
         try:
-            choice = raw_input('#: ')
-        except Exception as e:
-            choice = ''
+            choice = int(raw_input('#: '))
+        except ValueError:
+            choice = 99
         if choice not in valid:
             print(u"invalid choice \n")            
-    return int(choice)
+    return choice
 
 
 def interactive_launcher(choice):
@@ -132,30 +124,6 @@ def interactive_launcher(choice):
                6: exit
                }
     options[choice]()
-
-
-def install_uninstall():
-    """Check for block list headers, if present uninstall. If not, install."""
-    list_present = is_list_present()
-    choice = ''
-    while choice not in ['yes', 'no']:
-        if list_present:
-            print(u"\n* Uninstall block list?")
-        else:
-            print(u"\n* Install block list?")
-        choice = raw_input('yes/no ?: ').lower()
-    if list_present and choice == 'yes':
-        if remove_list():
-            print("\n* Block list  successfully removed.")
-        else:
-            print("\n* No list present to uninstall.")
-    elif choice == 'yes':
-        if install_list():
-            print("\n* Block list successfully installed.")
-        else:
-            print("\n* Block lists already present in host file.")
-    else:
-        return
 
 
 def is_list_present():
@@ -197,6 +165,31 @@ def file_to_list(file_path):
     return domain_list
 
 
+def install_uninstall(choice=''):
+    """Check for block list headers, if present uninstall. If not, install."""
+    list_present = is_list_present()
+    if interactive:
+        while choice not in ['install', 'uninstall']:
+            if list_present:
+                print(u"\n* Uninstall block list?")
+                if raw_input("yes/no: ").lower() == 'yes':
+                    choice = 'uninstall'
+            else:
+                print(u"\n* Install block list?")
+                if raw_input("yes/no: ").lower() == 'yes':
+                    choice = 'install'
+    if choice == 'uninstall':
+        if uninstall_list():
+            print("\n* Block list  successfully removed.")
+        else:
+            print("\n* No list present to uninstall.")
+    elif choice == 'install':
+        if install_list():
+            print("\n* Block list successfully installed.")
+        else:
+            print("\n* Block lists already present in host file.")
+
+
 def install_list():
     """Insert Block List header and footer into host file, propagate base list."""
     # backup_hostfile() TODO: Add host list backup if no block list is present. Append date to backup name.
@@ -209,7 +202,7 @@ def install_list():
             exit()
         print("\n* Block list headers installed")
         print("* Initializing base block list...")
-        push_site(file_to_list(BASE_LIST))
+        push_site(file_to_list(BASE_LIST))  # TODO: may want to check domain validity and print invalid here
         # print("* Initializing custom list...") # TODO: Add custom block list append on install
         # push_site(file_to_list(CUSTOM_LIST))
         return True
@@ -217,8 +210,8 @@ def install_list():
         return False
 
 
-def remove_list():
-    """Iterate host file, locate list, null out list lines. Rewrite host file."""
+def uninstall_list():
+    """Iterate host file, locate block list, null out list lines. Rewrite host file."""
     if is_list_present():
         try:
             with open(host_file, 'r') as f:
@@ -237,7 +230,6 @@ def push_site(domain_list):
     """Add new sites to head of block list."""
     if domain_list:
         domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
-        print(domain_list)
         domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
         inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
         try:
@@ -260,7 +252,7 @@ def change_site(domain_str, option, ip=''):  # TODO: Add ability to modify sinkh
     """
     block_str = (SINK_PREFIX + domain_str + '\n')
     access_str = ('#' + SINK_PREFIX + domain_str + '\n')
-    change_options = {'ip': ip, 'state_block': block_str, 'state_access': access_str, 'remove': ''}
+    change_options = {'set_ip': ip, 'set_state_block': block_str, 'set_state_access': access_str, 'remove_site': ''}
 
     if option in change_options:
         update_str = change_options[option]
@@ -337,6 +329,7 @@ def add_sites(domain_list=''):
         if interactive:
             domain_list = get_domain_name()
         if domain_list:
+            domain_list = [domain_name for domain_name in domain_list if is_valid_domain(domain_name)]  # validity check
             push_site(domain_list)
             return True
         else:
@@ -353,12 +346,13 @@ def remove_sites(remove_domains_list=''):
         if interactive:
             remove_domains_list = get_domain_name()
         current_domains_list = [domain_tuple[0] for domain_tuple in get_current_list()]   # List of only domain names
+        remove_domains_list = [domain_name for domain_name in remove_domains_list if is_valid_domain(domain_name)]
         for domain_name in remove_domains_list:
             if domain_name in current_domains_list:
-                if change_site(domain_name, 'remove'):
-                    print("\n* Removed {} from block list.".format(domain_name))
+                if change_site(domain_name, 'remove_site'):
+                    print("* Removed {} from block list.".format(domain_name))
             else:
-                print("\n* Domain {} not present in list. ".format(domain_name))
+                print("* Domain {} not present in list. ".format(domain_name))
     else:
         print("\n* No block list present, install list first.")
 
@@ -371,7 +365,7 @@ def get_toggle_site():
     while choice not in xrange(len(site_state_list)):
         try:
             choice = int(raw_input('Site Number to toggle: ')) - 1
-        except Exception as e:
+        except ValueError:
             choice = ''
     return site_state_list[choice][0]  # site name
 
@@ -391,24 +385,25 @@ def toggle_confirm():
 
 def toggle_site(domain_choice=''):
     """Change blocked || accessible state of site via commenting out with #."""
-    #TODO: FLUSH DNS CACHE / Browsing History
+    # TODO: FLUSH DNS CACHE / Browsing History
     site_list = get_current_list()
     if interactive:
         domain_choice = get_toggle_site()
+
     domain_info = [domain_data for domain_data in site_list if domain_data[0] == domain_choice]
     if domain_info:
         domain_info = domain_info[0]
     else:
-        print("\n* Invalid site: {}".format(domain_choice))
+        print("\n* Invalid site choice: {}".format(domain_choice))
         return
     domain_name = domain_info[0]
     domain_state = domain_info[1]
     if domain_state == 'BLOCKED':
         if toggle_confirm():
-            change_site(domain_name, 'state_access')
+            change_site(domain_name, 'set_state_access')
             print("\n* {} is now accessible".format(domain_name))
     elif domain_state == 'ACCESSIBLE':
-        change_site(domain_name, 'state_block')
+        change_site(domain_name, 'set_state_block')
         print("\n* {} is now blocked.".format(domain_name))
 
 
