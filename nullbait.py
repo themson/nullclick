@@ -15,7 +15,7 @@ LINUX_HOSTPATH = '/etc/hosts'
 WIN_HOSTPATH = '\\system32\\drivers\\etc\\hosts'
 OSX_HOSTPATH = LINUX_HOSTPATH  
 BASE_LIST = 'base.list'
-CUSTOMER_LIST = 'custom.list'
+CUSTOM_LIST = 'custom.list'
 SINKHOLE_IP = '127.0.1.1'
 SPACER = '    '
 SINK_PREFIX = SINKHOLE_IP + SPACER
@@ -28,7 +28,7 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) # Unbuffered IO for printing
 
 
 def build_argparser():
-    """Create ArgumentParser object, add arg options, and return parsed args"""
+    """Create ArgumentParser object, add arg options, return parse_args object."""
     parser = argparse.ArgumentParser(prog='nullclick',
                                      description='Tool for blocking click-bait sites via system host file.',
                                      epilog="* Passing no arguments invokes interactive mode.")
@@ -57,37 +57,24 @@ def build_argparser():
 
 
 def arg_launcher(args):
-    list_present = is_list_present()
-
     if args.uninstall:
-        if list_present:
-            remove_list()
-            list_present = False
+        if remove_list() is True:
+            print("\n* Block list successfully removed.")
         else:
             print("\n* No list present to uninstall.")
-
     if args.install:
-        if not list_present:
-            initialize_list()
-            list_present = True
+        if install_list() is True:
+            print("\n* Block list successfully installed.")
         else:
-            print("\n* List is already installed.")
-
+            print("\n* List already present in host file.")
     if args.update_list:
         update_list()
-
     if args.domains_add:
-        domain_lst = []
-        for domain_name in args.domains_add:
-            if is_valid_domain(domain_name):
-                domain_lst.append(domain_name)
-            else:
-                print("\n* Invalid domain format: {}".format(domain_name))
-        push_site(domain_lst)  # TODO: this should just call add_sites() and pass an unchecked list
-
+        domain_list = [domain_name for domain_name in args.domains_add if is_valid_domain(domain_name)]
+        add_sites(domain_list)
     if args.domains_remove:
-            remove_sites(list(args.domains_remove))
-
+        domain_list = [domain_name for domain_name in args.domains_remove if is_valid_domain(domain_name)]
+        remove_sites(domain_list)
     if args.print_list:
         print_list()
 
@@ -143,7 +130,7 @@ def interactive_launcher(choice):
     options[choice]()
 
 
-def install_uninstall(**kwargs):
+def install_uninstall():
     """Check for block list headers, if present uninstall. If not, install."""
     list_present = is_list_present()
     choice = ''
@@ -154,9 +141,15 @@ def install_uninstall(**kwargs):
             print(u"\n* Install block list?")
         choice = raw_input('yes/no ?: ').lower()
     if list_present and choice == 'yes':
-        remove_list()
+        if remove_list() is True:
+            print("\n* Block list  successfully removed.")
+        else:
+            print("\n* No list present to uninstall.")
     elif choice == 'yes':
-        initialize_list()
+        if install_list() is True:
+            print("\n* Block list successfully installed.")
+        else:
+            print("\n* Block lists already present in host file.")
     else:
         return
 
@@ -187,22 +180,6 @@ def backup_hostfile():  # TODO: Review and add call in initialize_list or
             exit()
 
 
-def initialize_list():
-    """Insert Block List header and footer into host file, propagate base list."""
-    # backup_hostfile() TODO: Add user prompting for back up, append date to hostfile name
-    try:
-        with open(host_file, 'a') as hostf:
-            hostf.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
-    except IOError as e:
-        print(e.args)
-        exit()
-    print("\n* Block list headers installed")         
-    print("* Initializing base block list...")
-    push_site(file_to_list(BASE_LIST))
-    # print("* Initializing custom list...") # TODO: add custom block list append on install
-    # push_site(file_to_list(CUSTOMER_LIST))
-
-
 def file_to_list(file_path): 
     """Take in file path containing list of domain\n, one per line, return as list."""
     domain_list = []
@@ -216,35 +193,58 @@ def file_to_list(file_path):
     return domain_list
 
 
+def install_list():
+    """Insert Block List header and footer into host file, propagate base list."""
+    # backup_hostfile() TODO: Add host list backup if no block list is present. Append date to backup name.
+    if not is_list_present():
+        try:
+            with open(host_file, 'a') as f:
+                f.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
+        except IOError as e:
+            print(e.args)
+            exit()
+        print("\n* Block list headers installed")
+        print("* Initializing base block list...")
+        push_site(file_to_list(BASE_LIST))
+        # print("* Initializing custom list...") # TODO: Add custom block list append on install
+        # push_site(file_to_list(CUSTOM_LIST))
+        return True
+    else:
+        return False
+
+
 def remove_list():
     """Iterate host file, locate list, null out list lines. Rewrite host file."""
-    try:
-        with open(host_file, 'r') as f:
-            host_file_new = re.sub(BLOCKHEAD + '.*?' + BLOCKTAIL + '\n', '', f.read(), flags=re.DOTALL)
-        with open(host_file, 'w') as fnew:
-            fnew.write(host_file_new) 
-    except IOError as e:
-        print(e.args)
-        exit()
-    print("\n* Block list removed.")
+    if is_list_present():
+        try:
+            with open(host_file, 'r') as f:
+                host_file_new = re.sub(BLOCKHEAD + '.*?' + BLOCKTAIL + '\n', '', f.read(), flags=re.DOTALL)
+            with open(host_file, 'w') as f_new:
+                f_new.write(host_file_new)
+        except IOError as e:
+            print(e.args)
+            exit()
+        return True
+    else:
+        return False
     
 
 def push_site(domain_list):
     """Add new sites to head of block list."""
-    ip_domain_list = []
-    for domain in domain_list:  # Prepend IP
-        ip_domain_list.append(SINK_PREFIX + domain) # TODO: change to use join
-    inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(ip_domain_list))
-    try:
-        with open(host_file, 'r') as fin:
-            hostfile_new = fin.read().replace(BLOCKHEAD, inserted_sites)
-        with open(host_file, 'w') as fout:
-            fout.write(hostfile_new)   
-    except IOError as e:
-        print(e.args)
-        exit()
-    print("\n* Added domain:\n{}".format('\n'.join(domain_list)))
-    
+    if domain_list:
+        domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Remove invalid, SHOULD have been checking on calling function
+        domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
+        inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
+        try:
+            with open(host_file, 'r') as f_in:
+                host_file_new = f_in.read().replace(BLOCKHEAD, inserted_sites)
+            with open(host_file, 'w') as f_out:
+                f_out.write(host_file_new)
+        except IOError as e:
+            print(e.args)
+            exit()
+        print("\n* Added domain:\n{}".format('\n'.join(domain_list)))
+
 
 def change_site(domain_str, option, ip=''):
     """Modify Site Entry
@@ -278,7 +278,7 @@ def change_site(domain_str, option, ip=''):
     return match 
 
 
-def get_current_list():
+def get_current_list():  # TODO: change to include sinkhole ip
     """Iterate host file, create list of tuples containing site and block state."""
     domain_list = []
     list_line = False
@@ -311,23 +311,32 @@ def is_valid_domain(domain_name):
 
 
 def get_domain_name():
-    """Prompt for and return domain name, check against valid naming regex."""
-    domain = []
-    domain.append(raw_input('\nDomain name?: '))
-    if is_valid_domain(domain[0]):
-        return domain
-    else:
-        print("\n * Invalid domain format.")
-        exit()
+    """Prompt and return domain list
+
+    Iterate prompt as split list.
+    Checks each name against domain naming regex.
+    Warning: Can return zero length list.
+    """
+    domains = []
+    for domain_name in raw_input('\nDomain name(s)?: ').split():
+        if is_valid_domain(domain_name):
+            domains.append(domain_name)
+        else:
+            print("* Invalid domain: {}".format(domain_name))
+    return domains
 
 
-def add_sites(domain_lst=''):
+def add_sites(domain_list=''):
     """Push new sites onto head of list. Returns Bool if needed"""
     if is_list_present():
         if interactive:
-            domain_lst = get_domain_name()
-        push_site(domain_lst)
-        return True
+            domain_list = get_domain_name()
+        if domain_list:
+            push_site(domain_list)
+            return True
+        else:
+            print("\n* No valid domains to add.")
+            return False
     else:
         print("\n* No block list present, must install list first.")
         return False
@@ -338,11 +347,7 @@ def remove_sites(remove_domains_list=''):
     if is_list_present():
         if interactive:
             remove_domains_list = get_domain_name()
-
-        current_domains_list = []
-        for domain_tuple in get_current_list():
-            current_domains_list.append(domain_tuple[0])
-
+        current_domains_list = [domain_tuple[0] for domain_tuple in get_current_list()]   # List of only domain names
         for domain_name in remove_domains_list:
             if domain_name in current_domains_list:
                 if change_site(domain_name, 'remove'):
@@ -379,19 +384,22 @@ def toggle_site():  # TODO: change to take in domain list
 
 
 def update_list():
-    """Update hostfile and base block lists
+    """Update host file and base block lists
     
     Load current block file into list.
     Pull updated block file from project site.
     Write new block file to disk. 
     Load new block file into list.
     Diff lists, add new domains to host_file.
+
+    Remind user they must also have an installed list.
     """
     current_list = file_to_list(BASE_LIST)
+    print("* Retrieving updated block list data...")
     try:
         new_block_list = urllib2.urlopen(LIST_URL).read()
     except Exception as e:
-        print(e.args)
+        print("Update Connection Error: {}".format(e.args))
         exit()
     try:
         with open(BASE_LIST, 'w') as f:
@@ -403,9 +411,12 @@ def update_list():
     diff_list = list(set(new_list) - set(current_list))
     if len(diff_list) > 0:
         push_site(diff_list)
-        print("\n* List successfully updated.")
+        print("\n* List data successfully updated.")
     else:
-        print("\n* List is already up to date.")
+        print("\n* List data is already up to date.")
+
+    if is_list_present() is not True:
+        print("* Note: You must install the block list for these changes to take effect.")
     
     
 def print_list():
@@ -413,7 +424,7 @@ def print_list():
     if is_list_present():
         print("\n*** Current Block List ***", end='')
         for index, domain in enumerate(get_current_list()):
-            print(u"{:2d} {} - {}".format(index, domain[0], domain[1]))
+            print(u"{:2d} {} - {}".format(index + 1, domain[0], domain[1]))
         print('')
     else:
         print("\n* Block list not installed.")
