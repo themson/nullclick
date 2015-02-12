@@ -10,6 +10,7 @@ Supported: Linux, OSX, and Windows
 
 Installation:
     LINUX -
-    sudo git clone https://github.com/themson/nullclick.git /opt/nullclick/
-    ln -fs /opt/nullclick/nullclick.py /usr/local/bin/nullclick
+    - sudo git clone https://github.com/themson/nullclick.git /opt/nullclick/
+    - ln -fs /opt/nullclick/nullclick.py /usr/local/bin/nullclick
+    
   
