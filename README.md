@@ -17,15 +17,15 @@ No third party libraries required.
 
 **Usage:**
 
-nullclick --help
-
 usage: nullclick [-h] [-a DOMAIN [DOMAIN ...]] [-r DOMAIN [DOMAIN ...]]
-                 [-t DOMAIN] [-p] [-d] [-i] [-u]
+                 [-t DOMAIN] [-l FILE] [-p] [-d] [-i] [-u] [-s]
+                 
 
 Tool for blocking click-bait sites via system host file.
 
-optional arguments:
 
+optional arguments:
+  
   -h, --help            show this help message and exit
 
   -a DOMAIN [DOMAIN ...], --add DOMAIN [DOMAIN ...]
@@ -37,6 +37,8 @@ optional arguments:
   -t DOMAIN, --toggle DOMAIN
                         Toggle access to single domain.
 
+  -l FILE, --list FILE  Add domain names from file to block list.
+
   -p, --print-list      Print block list or block list after current actions.
 
   -d, --update          Update block list from project repository.
@@ -45,4 +47,5 @@ optional arguments:
 
   -u, --uninstall       Remove block list from system host file.
 
-* Passing no arguments invokes interactive mode.
+  -s, --shell           Enter interactive shell.
+
