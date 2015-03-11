@@ -259,19 +259,28 @@ def uninstall_list():
 def push_site(domain_list):
     """Add new sites to head of block list."""
     if domain_list:
-        domain_list = list(set(domain_list))
-        domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
-        domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
-        inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
-        try:
-            with open(host_file, 'r') as f_in:
-                host_file_new = f_in.read().replace(BLOCKHEAD, inserted_sites)
-            with open(host_file, 'w') as f_out:
-                f_out.write(host_file_new)
-        except IOError as e:
-            print(e.args)
-            exit()
-        print("\n* Added domain:\n{}".format('\n'.join(domain_list)))
+        current_list = [domain[0] for domain in get_current_list()]
+        domain_list = list(set(domain_list)) # remove duplicates
+        domain_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
+        tmp_list = []
+        for domain in domain_list:
+            if domain not in current_list:
+                tmp_list.append(domain)
+                print("* Added: {}".format(domain))
+            else:
+                print("* Domain already in list: {}".format(domain))
+        domain_list = tmp_list
+        if len(domain_list) > 0:
+            domain_ip_gen = (SINK_PREFIX + domain for domain in domain_list)  # Prepend sinkhole IP
+            inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
+            try:
+                with open(host_file, 'r') as f_in:
+                    host_file_new = f_in.read().replace(BLOCKHEAD, inserted_sites)
+                with open(host_file, 'w') as f_out:
+                    f_out.write(host_file_new)
+            except IOError as e:
+                print(e.args)
+                exit()
 
 
 def change_site(domain_str, option, ip=''):  # TODO: Add ability to modify sinkhole IP per site
