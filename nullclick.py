@@ -259,6 +259,7 @@ def uninstall_list():
 def push_site(domain_list):
     """Add new sites to head of block list."""
     if domain_list:
+        domain_list = list(set(domain_list))
         domains_list = [domain for domain in domain_list if is_valid_domain(domain)]  # Doubled from calling function
         domain_ip_gen = (SINK_PREFIX + domain for domain in domains_list)  # Prepend sinkhole IP
         inserted_sites = (BLOCKHEAD + '\n' + '\n'.join(domain_ip_gen))
