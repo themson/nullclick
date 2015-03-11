@@ -31,33 +31,42 @@ def build_argparser():
     """Create ArgumentParser object, add arg options, return parse_args object."""
     parser = argparse.ArgumentParser(prog='nullclick',
                                      description='Tool for blocking click-bait sites via system host file.',
-                                     epilog="* Passing no arguments invokes interactive mode.")
-    parser.add_argument("-a", "--add", nargs='+',
+                                     epilog='')
+    parser.add_argument('-a', '--add', nargs='+',
                         help="Add domain name(s) to block list.",
                         metavar='DOMAIN', dest='domains_add')
-    parser.add_argument("-r", "--remove", nargs='+',
+    parser.add_argument('-r', '--remove', nargs='+',
                         help="Remove domain name(s) from block list.",
                         metavar='DOMAIN', dest='domains_remove')
-    parser.add_argument("-t", "--toggle", nargs=1,
+    parser.add_argument('-t', '--toggle', nargs=1,
                         help="Toggle access to single domain.",
-                        metavar='DOMAIN',  dest='domain_toggle')
-    parser.add_argument("-p", "--print-list", action='store_true', default=False,
+                        metavar='DOMAIN', dest='domain_toggle')
+    parser.add_argument('-l', '--list',
+                        help="Add domain names from file to block list.",
+                        metavar='FILE', dest='list_path')
+    parser.add_argument('-p', '--print-list', action='store_true', default=False,
                         help="Print block list or block list after current actions.",
                         dest='print_list')
-    parser.add_argument("-d", "--update", action='store_true', default=False,
+    parser.add_argument('-d', '--update', action='store_true', default=False,
                         help="Update block list from project repository.",
                         dest='update_list')
-    parser.add_argument("-i", "--install", action='store_true', default=False,
+    parser.add_argument('-i', '--install', action='store_true', default=False,
                         help="Install block list into system host file.",
                         dest='install')
-    parser.add_argument("-u", "--uninstall", action='store_true', default=False,
+    parser.add_argument('-u', '--uninstall', action='store_true', default=False,
                         help="Remove block list from system host file.",
                         dest='uninstall')
-    return parser.parse_args()
+    parser.add_argument('-s', '--shell', action='store_true', default=False,
+                        help="Enter interactive shell.",
+                        dest='shell')
+    return parser
 
 
-def arg_launcher(args):
+def arg_launcher(parser):
     """Parse command line arguments, launch in clean order."""
+    args = parser.parse_args()
+    if args.shell:
+        interactive_shell()
     if args.uninstall:
         install_uninstall('uninstall')
     if args.install:
@@ -66,6 +75,8 @@ def arg_launcher(args):
         update_list()
     if args.domains_add:
         add_sites(args.domains_add)
+    if args.list_path:
+        add_list(args.list_path)
     if args.domains_remove:
         remove_sites(args.domains_remove)
     if args.domain_toggle:
@@ -95,14 +106,15 @@ def menu_choice():
 1. Add site to block list.
 2. Remove site from block list. 
 3. Toggle site state.
-4. Print current block list.
-5. Update block list.
-6. Exit
+4. Add domains from file to block list.
+5. Print current block list.
+6. Update block list.
+7. Install/Uninstall block list.
 
-0. Install/Uninstall block list.
+0. Exit
 """)
     choice = 99
-    valid = (0, 1, 2, 3, 4, 5, 6)
+    valid = (0, 1, 2, 3, 4, 5, 6, 7)
     while choice not in valid:
         try:
             choice = int(raw_input('#: '))
@@ -115,13 +127,14 @@ def menu_choice():
 
 def interactive_launcher(choice):
     """"Take in int choice, use dict as switch to call function."""
-    options = {0: install_uninstall,
+    options = {0: exit,
                1: add_sites,
                2: remove_sites,
                3: toggle_site,
-               4: print_list,
-               5: update_list,
-               6: exit
+               4: add_list,
+               5: print_list,
+               6: update_list,
+               7: install_uninstall
                }
     options[choice]()
 
@@ -152,7 +165,7 @@ def backup_hostfile():  # TODO: Review and add call in install_list
             exit()
 
 
-def file_to_list(file_path): 
+def file_to_list(file_path):
     """Take in file path containing list of domain\n, one per line, return as list."""
     domain_list = []
     try:  
@@ -161,23 +174,28 @@ def file_to_list(file_path):
                 domain_list.append(site.rstrip('\n'))
     except IOError as e:
             print(e.args)
-            exit()
     return domain_list
 
 
 def install_uninstall(choice=''):
     """Check for block list headers, if present uninstall. If not, install."""
     list_present = is_list_present()
-    if interactive:
+    if interactive is True:
         while choice not in ['install', 'uninstall']:
             if list_present:
-                print(u"\n* Uninstall block list?")
-                if raw_input("yes/no: ").lower() == 'yes':
+                print("\n* Uninstall block list?")
+                tmp_choice = raw_input("yes/no: ").lower()
+                if tmp_choice in ('yes', 'y'):
                     choice = 'uninstall'
+                elif tmp_choice in ('no', 'n'):
+                    return
             else:
-                print(u"\n* Install block list?")
-                if raw_input("yes/no: ").lower() == 'yes':
+                print("\n* Install block list?")
+                tmp_choice = raw_input("yes/no: ").lower()
+                if tmp_choice in ('yes', 'y'):
                     choice = 'install'
+                elif tmp_choice in ('no', 'n'):
+                    return
     if choice == 'uninstall':
         if uninstall_list():
             print("\n* Block list  successfully removed.")
@@ -190,10 +208,10 @@ def install_uninstall(choice=''):
             print("\n* Block lists already present in host file.")
 
 
-def install_list():
+def install_list(block_list=BASE_LIST):
     """Insert Block List header and footer into host file, propagate base list."""
     # backup_hostfile() TODO: Add host list backup if no block list is present. Append date to backup name.
-    if not is_list_present():
+    if is_list_present() is False:
         try:
             with open(host_file, 'a') as f:
                 f.write(BLOCKHEAD + '\n' + BLOCKTAIL + '\n')
@@ -202,12 +220,24 @@ def install_list():
             exit()
         print("\n* Block list headers installed")
         print("* Initializing base block list...")
-        push_site(file_to_list(BASE_LIST))  # TODO: may want to check domain validity and print invalid here
-        # print("* Initializing custom list...") # TODO: Add custom block list append on install
-        # push_site(file_to_list(CUSTOM_LIST))
-        return True
+        return add_list(block_list)  # TODO: may want to check domain validity and print invalid here
     else:
         return False
+
+
+def add_list(list_path=''):
+    """Add a list of domains from file outside of the base list"""
+    if is_list_present() is False:
+        print("\n* No list present. Please install block list first")
+        return
+    if interactive is True and list_path == '':
+        print("\n* From what file would you like to load domains?")
+        list_path = raw_input("File Path?: ")
+    try:
+        push_site(file_to_list(list_path))
+        return True
+    except IOError as e:
+        print("ERROR: add_list() - ".format(e.args))
 
 
 def uninstall_list():
@@ -326,7 +356,7 @@ def get_domain_name():
 def add_sites(domain_list=''):
     """Push new sites onto head of list. Returns Bool if needed"""
     if is_list_present():
-        if interactive:
+        if interactive is True:
             domain_list = get_domain_name()
         if domain_list:
             domain_list = [domain_name for domain_name in domain_list if is_valid_domain(domain_name)]  # validity check
@@ -343,7 +373,7 @@ def add_sites(domain_list=''):
 def remove_sites(remove_domains_list=''):
     """Remove list of sites from host file block list."""
     if is_list_present():
-        if interactive:
+        if interactive is True:
             remove_domains_list = get_domain_name()
         current_domains_list = [domain_tuple[0] for domain_tuple in get_current_list()]   # List of only domain names
         remove_domains_list = [domain_name for domain_name in remove_domains_list if is_valid_domain(domain_name)]
@@ -387,9 +417,8 @@ def toggle_site(domain_choice=''):
     """Change blocked || accessible state of site via commenting out with #."""
     # TODO: FLUSH DNS CACHE / Browsing History
     site_list = get_current_list()
-    if interactive:
+    if interactive is True:
         domain_choice = get_toggle_site()
-
     domain_info = [domain_data for domain_data in site_list if domain_data[0] == domain_choice]
     if domain_info:
         domain_info = domain_info[0]
@@ -455,21 +484,27 @@ def print_list():
         print("\n* Block list not installed.")
 
 
+def interactive_shell():
+    """Enter interactive nullclick shell."""
+    global interactive
+    interactive = True
+    print("\n * Entering interactive mode.")
+    while 1:
+        interactive_launcher(menu_choice())
+    exit()
+
+
 def main():
     """Call arg launcher or menu launcher loop."""
-    global interactive
     set_hostfile()
-
-    if len(sys.argv) > 1:
-        args = build_argparser()
-        arg_launcher(args)
-        exit()
+    parser = build_argparser()
+    if len(sys.argv) == 1:
+        parser.print_help()
     else:
-        interactive = True
-        print("\n * Entering interactive mode.")
-        while 1:
-            interactive_launcher(menu_choice())
-    
-    
+        arg_launcher(parser)
+
+
 if __name__ == "__main__":
     main()
+
+
