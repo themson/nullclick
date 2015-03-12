@@ -33,12 +33,9 @@ optional arguments:
 
   -r DOMAIN [DOMAIN ...], --remove DOMAIN [DOMAIN ...]
                         Remove domain name(s) from block list.
-
   -t DOMAIN, --toggle DOMAIN
                         Toggle access to single domain.
-
   -l FILE, --list FILE  Add domain names from file to block list.
-
   -p, --print-list      Print block list or block list after current actions.
 
   -d, --update          Update block list from project repository.
